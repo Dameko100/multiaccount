@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Multiaccount · Limited Sniper</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="favicon.svg" alt="" width="28" height="28">
+      <div>
+        <h1>Multiaccount</h1>
+        <p>Publica una vez, llega a todas partes · <a href="https://limitedsniper.app" target="_blank" rel="noopener">limitedsniper.app</a></p>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist">
+      <button role="tab" aria-selected="true" data-tab="compose">Redactar</button>
+      <button role="tab" aria-selected="false" data-tab="history">Historial</button>
+    </nav>
+  </header>
+
+  <main>
+    <section id="tab-compose" class="layout">
+      <div class="col">
+        <div class="card">
+          <div class="card-head">
+            <h2>Mensaje</h2>
+            <label class="inline">Plantilla
+              <select id="template"><option value="">— Escribir desde cero —</option></select>
+            </label>
+          </div>
+          <label>Texto
+            <textarea id="text" rows="7" placeholder="¿Qué quieres contar sobre Limited Sniper?"></textarea>
+          </label>
+          <div class="grid2">
+            <label>Enlace <input id="link" type="url" placeholder="https://limitedsniper.app"></label>
+            <label>Hashtags <input id="hashtags" placeholder="Roblox LimitedSniper"></label>
+          </div>
+          <details>
+            <summary>Más opciones (título, imagen, Reddit)</summary>
+            <label>Título <small>(Reddit, LinkedIn y tarjeta de Bluesky)</small>
+              <input id="title" placeholder="Si lo dejas vacío se usa la primera línea">
+            </label>
+            <div class="grid2">
+              <label>URL de imagen <small>(https, pública — obligatoria para Instagram)</small>
+                <input id="imageUrl" type="url" placeholder="https://…/captura.png">
+              </label>
+              <label>Texto alternativo <input id="imageAlt" placeholder="Describe la imagen"></label>
+            </div>
+            <div class="grid2">
+              <label>Subreddit <input id="subreddit" placeholder="r/…"></label>
+              <label>Idioma
+                <select id="lang"><option value="es">Español</option><option value="en">English</option></select>
+              </label>
+            </div>
+          </details>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Plataformas</h2>
+            <div class="row">
+              <button class="ghost small" id="selectReady">Todas las configuradas</button>
+              <button class="ghost small" id="selectNone">Ninguna</button>
+            </div>
+          </div>
+          <div id="platforms" class="platforms"></div>
+        </div>
+
+        <div class="actions">
+          <button class="ghost" id="dryRun">Simular</button>
+          <button class="primary" id="publish" disabled>Publicar</button>
+        </div>
+        <div id="results" class="results" aria-live="polite"></div>
+      </div>
+
+      <div class="col">
+        <div class="card">
+          <div class="card-head">
+            <h2>Vista previa por plataforma</h2>
+          </div>
+          <p class="hint">Puedes editar el texto de cada red por separado. El enlace nunca se recorta; si no cabe, se quitan primero los hashtags.</p>
+          <div id="previews" class="previews"><p class="empty">Selecciona plataformas para ver cómo quedará cada post.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-history" hidden>
+      <div class="card">
+        <div class="card-head"><h2>Historial</h2></div>
+        <div id="history" class="history"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

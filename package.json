@@ -1,0 +1,15 @@
+{
+  "name": "multiaccount",
+  "version": "1.0.0",
+  "description": "Publica a la vez en X, Bluesky, Mastodon, Threads, Instagram, Facebook, LinkedIn, Reddit, Telegram y Discord para promocionar Limited Sniper.",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "bin": { "multipost": "bin/multipost.js" },
+  "scripts": {
+    "start": "node src/server.js",
+    "post": "node bin/multipost.js",
+    "test": "node --test test/*.test.js"
+  }
+}
