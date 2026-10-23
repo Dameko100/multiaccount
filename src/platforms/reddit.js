@@ -7,6 +7,7 @@ module.exports = {
   name: 'Reddit',
   rules: { maxLength: 40000, hashtags: false },
   image: 'none',
+  video: 'none',
   requiredEnv: ['REDDIT_CLIENT_ID', 'REDDIT_CLIENT_SECRET', 'REDDIT_USERNAME', 'REDDIT_PASSWORD'],
   setupUrl: 'https://www.reddit.com/prefs/apps',
   async publish({ text, post, env, fetch }) {

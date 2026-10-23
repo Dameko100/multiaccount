@@ -1,7 +1,7 @@
 'use strict';
 
 const $ = (id) => document.getElementById(id);
-const state = { platforms: [], templates: [], selected: new Set(), overrides: {}, busy: false };
+const state = { platforms: [], templates: [], selected: new Set(), overrides: {}, busy: false, video: null };
 
 const store = {
   get(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
@@ -36,6 +36,8 @@ function currentPost() {
     imageAlt: $('imageAlt').value.trim(),
     subreddit: $('subreddit').value.trim(),
     lang: $('lang').value,
+    videoId: state.video?.id || '',
+    videoUrl: $('videoUrl').value.trim(),
     overrides: state.overrides,
     platforms: state.platforms.map((p) => p.id).filter((id) => state.selected.has(id)),
   };
@@ -56,8 +58,10 @@ function renderPlatforms() {
       saveDraft(); refreshPreview();
     } });
     const title = p.configured ? 'Configurada' : `Falta en .env: ${p.requiredEnv.join(', ')}`;
+    const badge = p.video === 'required' ? 'solo vídeo' : p.video !== 'none' ? 'vídeo' : '';
     return el('label', { class: `platform${p.configured ? '' : ' off'}`, title },
-      input, el('span', {}, p.name), el('span', { class: `dot${p.configured ? ' on' : ''}` }));
+      input, el('span', {}, p.name), badge ? el('span', { class: 'badge', title: 'Admite vídeo' }, badge) : null,
+      el('span', { class: `dot${p.configured ? ' on' : ''}` }));
   }));
   updatePublishButton();
 }
@@ -104,9 +108,11 @@ function renderPreviews(items) {
         el('strong', {}, item.name || item.platform),
         el('span', { class: 'row' },
           edited ? el('span', { class: 'tag edited' }, 'editado') : null,
+          item.sendsVideo ? el('span', { class: 'tag' }, 'con vídeo') : null,
           item.configured ? null : el('span', { class: 'tag' }, 'sin credenciales'),
           count)),
       area,
+      ...(item.blockers || []).map((w) => el('p', { class: 'block' }, '⛔ ' + w)),
       ...(item.warnings || []).map((w) => el('p', { class: 'warn' }, '⚠ ' + w)),
       reset);
   }));
@@ -120,6 +126,61 @@ function renderPreviews(items) {
 function autosize(area) {
   area.style.height = 'auto';
   area.style.height = `${area.scrollHeight + 2}px`;
+}
+
+// ---- Video ----
+function formatBytes(n) {
+  if (n >= 1024 ** 3) return `${(n / 1024 ** 3).toFixed(1)} GB`;
+  if (n >= 1024 ** 2) return `${Math.round(n / 1024 ** 2)} MB`;
+  return `${Math.max(1, Math.round(n / 1024))} KB`;
+}
+
+function showVideo(meta, persist = true) {
+  state.video = meta;
+  $('videoEmpty').hidden = Boolean(meta);
+  $('videoReady').hidden = !meta;
+  const player = $('videoPreview');
+  if (meta) {
+    player.src = `/media/${meta.id}`;
+    $('videoName').textContent = meta.name;
+    $('videoInfo').textContent = formatBytes(meta.size);
+    player.onloadedmetadata = () => {
+      const secs = Math.round(player.duration);
+      const shape = player.videoHeight > player.videoWidth ? 'vertical' : player.videoHeight === player.videoWidth ? 'cuadrado' : 'horizontal';
+      $('videoInfo').textContent = `${formatBytes(meta.size)} · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} · ${player.videoWidth}×${player.videoHeight} (${shape})`;
+    };
+  } else {
+    player.removeAttribute('src');
+    player.load();
+  }
+  if (persist) saveDraft();
+  refreshPreview();
+}
+
+function uploadVideo(file) {
+  if (!file) return;
+  if (!file.type.startsWith('video/')) return alert('Elige un archivo de vídeo (MP4, MOV o WebM).');
+  const bar = $('uploadProgress');
+  bar.hidden = false;
+  const xhr = new XMLHttpRequest();
+  xhr.open('POST', '/api/media');
+  xhr.setRequestHeader('Content-Type', file.type);
+  xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+  xhr.upload.onprogress = (e) => {
+    if (!e.lengthComputable) return;
+    const pct = Math.round((e.loaded / e.total) * 100);
+    bar.firstElementChild.style.width = `${pct}%`;
+    bar.lastElementChild.textContent = `Subiendo ${file.name}… ${pct}%`;
+  };
+  xhr.onloadend = () => {
+    bar.hidden = true;
+    bar.firstElementChild.style.width = '0';
+    let data = {};
+    try { data = JSON.parse(xhr.responseText); } catch { /* ignore */ }
+    if (xhr.status === 201) showVideo(data);
+    else alert(data.error || 'No se pudo subir el vídeo.');
+  };
+  xhr.send(file);
 }
 
 // ---- Publish ----
@@ -158,7 +219,7 @@ async function loadHistory() {
   if (!list.length) return box.replaceChildren(el('p', { class: 'empty' }, 'Todavía no has publicado nada.'));
   box.replaceChildren(...list.map((e) => el('article', { class: 'entry' },
     el('time', { datetime: e.at }, new Date(e.at).toLocaleString()),
-    el('p', {}, e.post.text),
+    el('p', {}, (e.post.video ? `🎬 ${e.post.video.name || e.post.video.url}\n` : '') + e.post.text),
     el('div', { class: 'chips' }, ...e.results.map((r) => r.url
       ? el('a', { class: `chip ${r.ok ? 'ok' : 'fail'}`, href: r.url, target: '_blank', rel: 'noopener' }, r.name || r.platform)
       : el('span', { class: `chip ${r.ok ? 'ok' : 'fail'}`, title: r.error || '' }, r.name || r.platform))))));
@@ -186,9 +247,23 @@ async function init() {
   for (const t of tpl.templates) $('template').append(el('option', { value: t.id }, t.name));
 
   const draft = store.get('draft', null);
-  const fields = ['text', 'link', 'hashtags', 'title', 'imageUrl', 'imageAlt', 'subreddit', 'lang'];
+  const fields = ['text', 'link', 'hashtags', 'title', 'imageUrl', 'imageAlt', 'subreddit', 'lang', 'videoUrl'];
   if (draft) for (const f of fields) if (draft[f] != null) $(f).value = draft[f];
   if (!$('link').value) $('link').value = tpl.link;
+  if (draft?.videoId) {
+    const meta = await api(`/api/media/${draft.videoId}`).catch(() => null);
+    if (meta) showVideo(meta, false);
+  }
+
+  $('videoFile').addEventListener('change', (e) => { uploadVideo(e.target.files[0]); e.target.value = ''; });
+  const drop = $('drop');
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', (e) => { e.preventDefault(); drop.classList.remove('over'); uploadVideo(e.dataTransfer.files[0]); });
+  $('videoRemove').addEventListener('click', () => {
+    if (state.video) fetch(`/api/media/${state.video.id}`, { method: 'DELETE' }).catch(() => {});
+    showVideo(null);
+  });
 
   const saved = store.get('selected', null);
   const initial = saved || platforms.filter((p) => p.configured).map((p) => p.id);

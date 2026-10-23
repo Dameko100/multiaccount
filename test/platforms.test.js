@@ -6,33 +6,7 @@ const bluesky = require('../src/platforms/bluesky');
 const { platforms, byId } = require('../src/platforms');
 const { publish, preview } = require('../src/publisher');
 
-// Fake fetch: records calls, answers from a list of [matcher, response] pairs.
-function fakeFetch(routes) {
-  const calls = [];
-  const fn = async (url, opts = {}) => {
-    calls.push({ url: String(url), opts });
-    const route = routes.find(([m]) => String(url).includes(m));
-    if (!route) throw new Error('Unexpected fetch ' + url);
-    const [, body, init = {}] = route;
-    const text = typeof body === 'string' ? body : JSON.stringify(body);
-    return new Response(text, { status: init.status || 200, headers: init.headers || { 'content-type': 'application/json' } });
-  };
-  fn.calls = calls;
-  return fn;
-}
-
-const ENV = {
-  X_API_KEY: 'k', X_API_SECRET: 's', X_ACCESS_TOKEN: 't', X_ACCESS_SECRET: 'ts',
-  BLUESKY_HANDLE: 'ls.bsky.social', BLUESKY_APP_PASSWORD: 'p',
-  MASTODON_INSTANCE: 'https://mastodon.social', MASTODON_ACCESS_TOKEN: 'm',
-  THREADS_USER_ID: '1', THREADS_ACCESS_TOKEN: 'th',
-  INSTAGRAM_USER_ID: '2', INSTAGRAM_ACCESS_TOKEN: 'ig',
-  FACEBOOK_PAGE_ID: '3', FACEBOOK_PAGE_TOKEN: 'fb',
-  LINKEDIN_ACCESS_TOKEN: 'li', LINKEDIN_AUTHOR_URN: 'urn:li:organization:9',
-  REDDIT_CLIENT_ID: 'c', REDDIT_CLIENT_SECRET: 'cs', REDDIT_USERNAME: 'u', REDDIT_PASSWORD: 'pw', REDDIT_SUBREDDIT: 'test',
-  TELEGRAM_BOT_TOKEN: 'b', TELEGRAM_CHAT_ID: '@ls',
-  DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/abc',
-};
+const { fakeFetch, ENV } = require('./helpers');
 
 test('X OAuth 1.0a signature matches the official example', () => {
   const sig = x.oauthSignature('POST', 'https://api.twitter.com/1.1/statuses/update.json', {
@@ -76,10 +50,10 @@ test('every platform publishes in parallel with the right API calls', async () =
     ['discord.com/api/webhooks', { id: 'D1' }],
     ['cdn.example.com', 'PNGDATA', { headers: { 'content-type': 'image/png' } }],
     ['uploadBlob', { blob: { ref: 'b' } }],
-    ['/api/v2/media', { id: 'M1' }],
+    ['/api/v2/media', { id: 'M1', url: 'https://files/i.png' }],
   ]);
   const post = { text: 'Prueba', link: 'https://limitedsniper.app', hashtags: ['Roblox'], imageUrl: 'https://cdn.example.com/a.png', title: 'Limited Sniper' };
-  const ids = platforms.map((p) => p.id);
+  const ids = platforms.filter((p) => p.video !== 'required').map((p) => p.id);
   const results = await publish(post, ids, { env: ENV, fetch });
 
   for (const r of results) assert.equal(r.ok, true, `${r.platform}: ${r.error}`);
@@ -120,7 +94,7 @@ test('unconfigured platforms are skipped and dry-run sends nothing', async () =>
 
 test('preview warns about Instagram without image and honours overrides', () => {
   const [ig, x] = preview({ text: 'Hola', overrides: { x: 'Solo para X' } }, ['instagram', 'x'], ENV);
-  assert.ok(ig.warnings.some((w) => /imagen/i.test(w)));
+  assert.ok(ig.blockers.some((w) => /imagen/i.test(w)));
   assert.equal(x.text, 'Solo para X');
 });
 

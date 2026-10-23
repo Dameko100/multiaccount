@@ -1,6 +1,8 @@
 'use strict';
 
 const platforms = [
+  require('./youtube'),
+  require('./tiktok'),
   require('./x'),
   require('./bluesky'),
   require('./mastodon'),

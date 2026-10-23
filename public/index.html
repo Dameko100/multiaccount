@@ -40,16 +40,10 @@
             <label>Hashtags <input id="hashtags" placeholder="Roblox LimitedSniper"></label>
           </div>
           <details>
-            <summary>Más opciones (título, imagen, Reddit)</summary>
-            <label>Título <small>(Reddit, LinkedIn y tarjeta de Bluesky)</small>
+            <summary>Más opciones (título, Reddit, idioma)</summary>
+            <label>Título <small>(YouTube, Reddit, LinkedIn y tarjeta de Bluesky)</small>
               <input id="title" placeholder="Si lo dejas vacío se usa la primera línea">
             </label>
-            <div class="grid2">
-              <label>URL de imagen <small>(https, pública — obligatoria para Instagram)</small>
-                <input id="imageUrl" type="url" placeholder="https://…/captura.png">
-              </label>
-              <label>Texto alternativo <input id="imageAlt" placeholder="Describe la imagen"></label>
-            </div>
             <div class="grid2">
               <label>Subreddit <input id="subreddit" placeholder="r/…"></label>
               <label>Idioma
@@ -57,6 +51,38 @@
               </label>
             </div>
           </details>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <h2>Vídeo e imagen</h2>
+          </div>
+          <div id="videoEmpty">
+            <label class="drop" id="drop">
+              <input id="videoFile" type="file" accept="video/mp4,video/quicktime,video/webm,video/*" hidden>
+              <span class="drop-icon" aria-hidden="true">🎬</span>
+              <strong>Sube un vídeo</strong>
+              <small>Arrastra aquí o haz clic · MP4 vertical recomendado para TikTok, Reels y Shorts</small>
+            </label>
+            <div id="uploadProgress" class="progress" hidden><div></div><span></span></div>
+          </div>
+          <div id="videoReady" class="video-ready" hidden>
+            <video id="videoPreview" controls preload="metadata" playsinline></video>
+            <div class="video-meta">
+              <strong id="videoName"></strong>
+              <small id="videoInfo"></small>
+              <button class="ghost small" id="videoRemove">Quitar vídeo</button>
+            </div>
+          </div>
+          <label>URL pública del vídeo <small>(opcional; necesaria para Threads y acelera Instagram y Facebook)</small>
+            <input id="videoUrl" type="url" placeholder="https://…/video.mp4">
+          </label>
+          <div class="grid2">
+            <label>URL de imagen <small>(si no hay vídeo)</small>
+              <input id="imageUrl" type="url" placeholder="https://…/captura.png">
+            </label>
+            <label>Texto alternativo <input id="imageAlt" placeholder="Describe la imagen o el vídeo"></label>
+          </div>
         </div>
 
         <div class="card">

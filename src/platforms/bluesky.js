@@ -31,10 +31,12 @@ module.exports = {
   name: 'Bluesky',
   rules: { maxLength: 300 },
   image: 'optional',
+  video: 'optional',
+  videoMaxBytes: 100 * 1024 * 1024,
   requiredEnv: ['BLUESKY_HANDLE', 'BLUESKY_APP_PASSWORD'],
   setupUrl: 'https://bsky.app/settings/app-passwords',
   buildFacets,
-  async publish({ text, post, env, fetch }) {
+  async publish({ text, post, env, fetch, video }) {
     const service = (env.BLUESKY_SERVICE || 'https://bsky.social').replace(/\/$/, '');
     const session = await request(fetch, `${service}/xrpc/com.atproto.server.createSession`, {
       method: 'POST',
@@ -51,7 +53,14 @@ module.exports = {
       langs: [post.lang || 'es'],
     };
 
-    if (post.imageUrl) {
+    if (video) {
+      const blob = await request(fetch, `${service}/xrpc/com.atproto.repo.uploadBlob`, {
+        method: 'POST',
+        headers: { ...auth, 'Content-Type': video.mime },
+        body: await video.getBuffer(),
+      });
+      record.embed = { $type: 'app.bsky.embed.video', video: blob.blob, alt: post.imageAlt || '' };
+    } else if (post.imageUrl) {
       const img = await fetch(post.imageUrl);
       if (!img.ok) throw new Error(`No se pudo descargar la imagen (${img.status})`);
       const blob = await request(fetch, `${service}/xrpc/com.atproto.repo.uploadBlob`, {

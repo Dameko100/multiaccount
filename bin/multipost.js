@@ -2,7 +2,8 @@
 'use strict';
 // Uso:
 //   node bin/multipost.js "Texto" [--platforms x,bluesky] [--link URL] [--tags "Roblox LimitedSniper"]
-//                         [--image URL] [--title "..."] [--subreddit nombre] [--template id] [--dry-run]
+//                         [--video ruta.mp4] [--video-url URL] [--image URL] [--title "..."]
+//                         [--subreddit nombre] [--template id] [--dry-run]
 const { parseArgs } = require('node:util');
 const { loadEnv } = require('../src/config');
 loadEnv();
@@ -10,6 +11,9 @@ const { platforms, isConfigured } = require('../src/platforms');
 const { publish } = require('../src/publisher');
 const { templates, LINK } = require('../src/templates');
 const { createHistory } = require('../src/history');
+const fs = require('node:fs');
+const path = require('node:path');
+const { mimeFromName } = require('../src/media');
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -18,6 +22,8 @@ const { values, positionals } = parseArgs({
     link: { type: 'string', short: 'l' },
     tags: { type: 'string', short: 't' },
     image: { type: 'string', short: 'i' },
+    video: { type: 'string', short: 'v' },
+    'video-url': { type: 'string' },
     title: { type: 'string' },
     subreddit: { type: 'string' },
     template: { type: 'string' },
@@ -29,7 +35,7 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.help) {
-  console.log(require('node:fs').readFileSync(__filename, 'utf8').split('\n').slice(2, 5).join('\n').replace(/^\/\/ ?/gm, ''));
+  console.log(require('node:fs').readFileSync(__filename, 'utf8').split('\n').slice(2, 6).join('\n').replace(/^\/\/ ?/gm, ''));
   process.exit(0);
 }
 
@@ -52,6 +58,13 @@ const post = {
   subreddit: values.subreddit || '',
   lang: values.lang || tpl?.lang || 'es',
 };
+if (values.video) {
+  const file = path.resolve(values.video);
+  if (!fs.existsSync(file)) { console.error(`No existe el vídeo: ${file}`); process.exit(1); }
+  post.video = { path: file, name: path.basename(file), mime: mimeFromName(file), size: fs.statSync(file).size, url: values['video-url'] || '' };
+} else if (values['video-url']) {
+  post.video = { url: values['video-url'] };
+}
 if (!post.text.trim()) { console.error('Falta el texto (o usa --template). Prueba --help.'); process.exit(1); }
 
 const ids = values.platforms
@@ -66,6 +79,7 @@ if (!ids.length) { console.error('No hay plataformas configuradas. Rellena .env 
   for (const r of results) {
     const icon = r.ok ? '✅' : r.skipped ? '⏭ ' : '❌';
     console.log(`${icon} ${r.name || r.platform}: ${r.ok ? (r.dryRun ? 'OK (simulación)' : r.url || 'publicado') : r.error}`);
+    if (r.note) console.log('   ' + r.note);
     if (dryRun) console.log('   ' + r.text.replace(/\n/g, '\n   '));
   }
   process.exit(results.every((r) => r.ok) ? 0 : 2);

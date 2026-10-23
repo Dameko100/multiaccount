@@ -47,3 +47,42 @@ test('API: platforms, templates, publish, history and static files', async () =>
     assert.equal(escape.status, 404);
   });
 });
+
+test('API: video upload, range preview, publish with video and delete', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'multi-'));
+  const mediaDir = path.join(dir, 'media');
+  const history = createHistory(path.join(dir, 'h.json'));
+  const fetch = async () => new Response(JSON.stringify({ id: 'D1' }), { status: 200 });
+  const env = { DISCORD_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/a' };
+
+  await withServer({ env, fetch, history, mediaDir }, async (base) => {
+    const notVideo = await globalThis.fetch(`${base}/api/media`, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'x' });
+    assert.equal(notVideo.status, 415);
+
+    const up = await globalThis.fetch(`${base}/api/media`, {
+      method: 'POST', headers: { 'Content-Type': 'video/mp4', 'X-Filename': encodeURIComponent('demo vídeo.mp4') }, body: Buffer.alloc(2048, 1),
+    });
+    assert.equal(up.status, 201);
+    const meta = await up.json();
+    assert.equal(meta.size, 2048);
+    assert.equal(meta.name, 'demo vídeo.mp4');
+
+    const part = await globalThis.fetch(`${base}/media/${meta.id}`, { headers: { Range: 'bytes=0-99' } });
+    assert.equal(part.status, 206);
+    assert.equal((await part.arrayBuffer()).byteLength, 100);
+
+    const res = await globalThis.fetch(`${base}/api/publish`, {
+      method: 'POST', body: JSON.stringify({ text: 'Vídeo', platforms: ['discord', 'youtube'], videoId: meta.id }),
+    });
+    const entry = await res.json();
+    assert.equal(entry.results[0].ok, true);
+    assert.equal(entry.results[1].skipped, true);
+    assert.equal(entry.post.video.name, 'demo vídeo.mp4');
+    assert.equal(JSON.stringify(entry).includes(mediaDir), false, 'local paths stay on the server');
+
+    await globalThis.fetch(`${base}/api/media/${meta.id}`, { method: 'DELETE' });
+    assert.equal((await globalThis.fetch(`${base}/api/media/${meta.id}`)).status, 404);
+    const gone = await globalThis.fetch(`${base}/api/publish`, { method: 'POST', body: JSON.stringify({ text: 'x', platforms: ['discord'], videoId: meta.id }) });
+    assert.equal(gone.status, 400);
+  });
+});
